@@ -115,6 +115,30 @@ EOF
 
 # 4. 防火墙 fw4 开机自启保险
 cat >> package/base-files/files/etc/rc.local <<'EOF'
+# 自动扩容 rootfs（首次启动执行）
+if [ ! -f /etc/.expanded ]; then
+    logger -t expand "开始自动扩容 rootfs..."
+
+    ROOT_PART=$(findmnt -no SOURCE /)
+    if [ -n "$ROOT_PART" ]; then
+        DISK=$(echo "$ROOT_PART" | sed -E 's/p?[0-9]+$//')
+        PART_NUM=$(echo "$ROOT_PART" | grep -o '[0-9]\+$')
+
+        if [ -n "$PART_NUM" ]; then
+            opkg update --no-check-certificate >/dev/null 2>&1
+            opkg install growpart --no-check-certificate >/dev/null 2>&1
+
+            growpart "$DISK" "$PART_NUM" >/dev/null 2>&1 && logger -t expand "growpart 成功"
+            partprobe "$DISK" 2>/dev/null
+
+            e2fsck -f -y "$ROOT_PART" >/dev/null 2>&1
+            resize2fs "$ROOT_PART" >/dev/null 2>&1 && logger -t expand "resize2fs 成功"
+        fi
+    fi
+
+    touch /etc/.expanded
+    logger -t expand "自动扩容完成"
+fi
 if [ -x /etc/init.d/firewall ]; then
     /etc/init.d/firewall enable
     /etc/init.d/firewall restart
