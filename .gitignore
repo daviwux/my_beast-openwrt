@@ -1,0 +1,19 @@
+# OpenWrt 编译目录
+openwrt/
+bin/
+build_dir/
+dl/
+logs/
+staging_dir/
+tmp/
+
+# 编译产物
+*.o
+*.a
+*.so
+*.ipk
+*.img.gz
+*.tar.gz
+
+# 缓存
+.cache/
