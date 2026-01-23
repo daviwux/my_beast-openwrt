@@ -144,6 +144,7 @@ if [ ! -f /etc/.expanded ]; then
     touch /etc/.expanded
     logger -t expand "自动扩容完成"
 fi
+
 # 确保 fw4 防火墙启动（纯 nftables）
 if [ -x /etc/init.d/firewall ]; then
     /etc/init.d/firewall enable
