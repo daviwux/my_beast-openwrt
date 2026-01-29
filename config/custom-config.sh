@@ -31,6 +31,15 @@ CONFIG_PACKAGE_luci-compat=y
 CONFIG_PACKAGE_luci-i18n-base-zh-cn=y
 CONFIG_PACKAGE_luci-theme-argon=y
 CONFIG_PACKAGE_luci-app-argon-config=y
+CONFIG_PACKAGE_luci-light=n
+CONFIG_PACKAGE_uhttpd=y
+CONFIG_PACKAGE_uhttpd-mod-ubus=y
+CONFIG_PACKAGE_luci-i18n-base-zh-cn=y
+CONFIG_PACKAGE_luci-mod-admin-full=y
+CONFIG_PACKAGE_luci-lib-ipkg=y
+CONFIG_PACKAGE_luci-lib-fs=y
+CONFIG_PACKAGE_libustream-openssl=y
+CONFIG_PACKAGE_luci-ssl-openssl=y
 
 # 纯 nftables
 CONFIG_PACKAGE_iptables=n
@@ -42,6 +51,13 @@ CONFIG_PACKAGE_firewall4=y
 CONFIG_PACKAGE_kmod-nft-nat=y
 CONFIG_PACKAGE_kmod-nft-queue=y
 CONFIG_PACKAGE_nftables=y
+
+# 满血网络核心 (DNSMASQ-Full)
+CONFIG_PACKAGE_dnsmasq=n
+CONFIG_PACKAGE_dnsmasq-full=y
+CONFIG_PACKAGE_dnsmasq_full_ipset=y
+CONFIG_PACKAGE_dnsmasq_full_nftset=y
+CONFIG_PACKAGE_dnsmasq_full_dhcpv6=y
 
 # PassWall2 预编译（核心依赖齐全）
 CONFIG_PACKAGE_luci-app-passwall2=y
