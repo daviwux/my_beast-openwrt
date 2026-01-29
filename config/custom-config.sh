@@ -13,6 +13,13 @@
 TARGET_DIR=${1:-$(pwd)/openwrt}
 cd "$TARGET_DIR" || { echo "目录错误"; exit 1; }
 
+# === 这里是新增的 DNSMASQ 强制替换逻辑 ===
+# 1. 强制移除官方 feeds 中的精简版 dnsmasq，确保编译 dnsmasq-full
+# 这种方法修改 target.mk，让系统不再默认安装 dnsmasq
+sed -i 's/base-files/base-files dnsmasq/g' include/target.mk
+# 2. 简单粗暴地移除源码目录中的 dnsmasq，防止编译冲突
+rm -rf package/network/services/dnsmasq
+# ==========================================
 # 固定管理 IP 为 192.168.1.2
 sed -i 's/192.168.1.1/192.168.1.2/g' package/base-files/files/bin/config_generate
 
@@ -127,6 +134,22 @@ CONFIG_PACKAGE_htop=y
 CONFIG_PACKAGE_ttyd=y
 CONFIG_PACKAGE_luci-app-ttyd=y
 CONFIG_PACKAGE_autocore=y
+# 1. 分区表调整工具 (对应脚本中的 growpart)
+CONFIG_PACKAGE_cloud-utils-growpart=y
+
+# 2. 磁盘分区刷新工具 (对应脚本中的 partprobe)
+CONFIG_PACKAGE_parted=y
+
+# 3. 文件系统调整工具 (对应脚本中的 resize2fs 和 e2fsck)
+CONFIG_PACKAGE_e2fsprogs=y
+
+# 4. 挂载查询工具 (对应脚本中的 findmnt)
+CONFIG_PACKAGE_util-linux=y
+CONFIG_PACKAGE_util-linux-findmnt=y
+
+# 5. 基础系统工具 (确保脚本执行环境)
+CONFIG_PACKAGE_bash=y
+CONFIG_PACKAGE_lsblk=y
 EOF
 
 # 性能调优 sysctl（通用优化）
