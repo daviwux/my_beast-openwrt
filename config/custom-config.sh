@@ -54,10 +54,19 @@ CONFIG_PACKAGE_nftables=y
 
 # 满血网络核心 (DNSMASQ-Full)
 CONFIG_PACKAGE_dnsmasq=n
+
+# 2. 启用满血版 DNSMASQ-FULL
 CONFIG_PACKAGE_dnsmasq-full=y
+
+# 3. 开启 DNSMASQ-FULL 的满血特性插件
 CONFIG_PACKAGE_dnsmasq_full_ipset=y
 CONFIG_PACKAGE_dnsmasq_full_nftset=y
+CONFIG_PACKAGE_dnsmasq_full_tftp=y
 CONFIG_PACKAGE_dnsmasq_full_dhcpv6=y
+CONFIG_PACKAGE_dnsmasq_full_dnssec=y
+CONFIG_PACKAGE_dnsmasq_full_auth=y
+CONFIG_PACKAGE_dnsmasq_full_conntrack=y
+CONFIG_PACKAGE_dnsmasq_full_nls=y
 
 # PassWall2 预编译（核心依赖齐全）
 CONFIG_PACKAGE_luci-app-passwall2=y
@@ -93,6 +102,8 @@ CONFIG_PACKAGE_kmod-nf-conntrack-netlink=y
 CONFIG_PACKAGE_luci-app-smartdns=y
 CONFIG_PACKAGE_luci-i18n-smartdns-zh-cn=y
 CONFIG_PACKAGE_smartdns=y
+CONFIG_PACKAGE_libubus-lua=y
+CONFIG_PACKAGE_libnetfilter-conntrack=y
 
 # Cake SQM + 高性能组件
 CONFIG_PACKAGE_luci-app-sqm=y
@@ -279,12 +290,6 @@ opkg install luci-app-smartdns luci-i18n-smartdns-zh-cn smartdns \
 echo "SmartDNS 修复完成！请检查 LuCI → Services → SmartDNS"
 EOF
 chmod +x package/base-files/files/etc/smartdns-setup.sh
-
-# 默认 Argon 主题
-# 彻底清理旧主题
-rm -rf feeds/luci/themes/luci-theme-argon
-# 拉取适配新版 ucode 的分支 (15/21.02/24.10 通用版)
-git clone -b 18.06 https://github.com/jerrykuku/luci-theme-argon.git package/downloads/luci-theme-argon
 
 echo "最终保险优化版 3.9.2 完成！"
 echo "即使编译第三方包失败，也可通过 SSH 或 LuCI 执行："
