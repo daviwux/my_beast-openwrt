@@ -265,12 +265,10 @@ EOF
 chmod +x package/base-files/files/etc/smartdns-setup.sh
 
 # 默认 Argon 主题
-mkdir -p package/base-files/files/etc/config
-cat > package/base-files/files/etc/config/luci <<EOF
-config luci
-        option lang 'auto'
-        option mediaurlbase '/luci-static/argon'
-EOF
+# 彻底清理旧主题
+rm -rf feeds/luci/themes/luci-theme-argon
+# 拉取适配新版 ucode 的分支 (15/21.02/24.10 通用版)
+git clone -b 18.06 https://github.com/jerrykuku/luci-theme-argon.git package/downloads/luci-theme-argon
 
 echo "最终保险优化版 3.9.2 完成！"
 echo "即使编译第三方包失败，也可通过 SSH 或 LuCI 执行："
