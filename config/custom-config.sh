@@ -50,6 +50,7 @@ CONFIG_PACKAGE_luci-ssl-openssl=y
 
 # 纯 nftables
 CONFIG_PACKAGE_iptables=n
+CONFIG_PACKAGE_luci-app-firewall=y
 CONFIG_PACKAGE_iptables-nft=n
 CONFIG_PACKAGE_ip6tables=n
 CONFIG_PACKAGE_ip6tables-nft=n
@@ -74,6 +75,7 @@ CONFIG_PACKAGE_dnsmasq_full_dnssec=y
 CONFIG_PACKAGE_dnsmasq_full_auth=y
 CONFIG_PACKAGE_dnsmasq_full_conntrack=y
 CONFIG_PACKAGE_dnsmasq_full_nls=y
+CONFIG_PACKAGE_luci-app-dnsmasq=y
 
 # PassWall2 预编译（核心依赖齐全）
 CONFIG_PACKAGE_luci-app-passwall2=y
@@ -104,6 +106,15 @@ CONFIG_PACKAGE_tini=y
 CONFIG_PACKAGE_kmod-veth=y
 CONFIG_PACKAGE_kmod-br-netfilter=y
 CONFIG_PACKAGE_kmod-nf-conntrack-netlink=y
+CONFIG_PACKAGE_kmod-tap=y
+# 1. 允许 Docker 容器直接操作磁盘分区 (如果你要在 Docker 里跑挂载任务)
+CONFIG_PACKAGE_kmod-loop=y
+
+# 2. 增强 Docker 的存储驱动支持 (防止某些镜像因为文件系统问题无法启动)
+CONFIG_PACKAGE_kmod-lib-crc32c=y
+
+# 3. 既然用了 Docker Compose，建议加上 cgroup 支持，防止资源限制失效
+CONFIG_PACKAGE_cgroupfs-mount=y
 
 # SmartDNS 预编译
 CONFIG_PACKAGE_luci-app-smartdns=y
