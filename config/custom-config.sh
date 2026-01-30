@@ -31,17 +31,14 @@ CONFIG_TARGET_x86_64_DEVICE_generic=y
 CONFIG_TARGET_KERNEL_PARTSIZE=256
 CONFIG_TARGET_ROOTFS_PARTSIZE=2048
 
-# LuCI + Argon + 中文
+# LuCI + bootstrap + 中文
 CONFIG_PACKAGE_luci=y
+CONFIG_PACKAGE_luci-theme-bootstrap=y
 CONFIG_PACKAGE_luci-base=y
 CONFIG_PACKAGE_luci-compat=y
 CONFIG_PACKAGE_luci-i18n-base-zh-cn=y
-CONFIG_PACKAGE_luci-theme-argon=y
-CONFIG_PACKAGE_luci-app-argon-config=y
-CONFIG_PACKAGE_luci-light=n
 CONFIG_PACKAGE_uhttpd=y
 CONFIG_PACKAGE_uhttpd-mod-ubus=y
-CONFIG_PACKAGE_luci-i18n-base-zh-cn=y
 CONFIG_PACKAGE_luci-mod-admin-full=y
 CONFIG_PACKAGE_luci-lib-ipkg=y
 CONFIG_PACKAGE_luci-lib-fs=y
@@ -50,15 +47,17 @@ CONFIG_PACKAGE_luci-ssl-openssl=y
 
 # 纯 nftables
 CONFIG_PACKAGE_iptables=n
-CONFIG_PACKAGE_luci-app-firewall=y
-CONFIG_PACKAGE_iptables-nft=n
+CONFIG_PACKAGE_iptables-nft=y
 CONFIG_PACKAGE_ip6tables=n
-CONFIG_PACKAGE_ip6tables-nft=n
-CONFIG_PACKAGE_kmod-ipt-offload=n
+CONFIG_PACKAGE_ip6tables-nft=y
+CONFIG_PACKAGE_kmod-ipt-offload=y
 CONFIG_PACKAGE_firewall4=y
 CONFIG_PACKAGE_kmod-nft-nat=y
 CONFIG_PACKAGE_kmod-nft-queue=y
 CONFIG_PACKAGE_nftables=y
+# --- 4. UI 界面与兼容性 ---
+CONFIG_PACKAGE_luci-app-firewall=y
+CONFIG_PACKAGE_luci-i18n-firewall-zh-cn=y
 
 # 满血网络核心 (DNSMASQ-Full)
 CONFIG_PACKAGE_dnsmasq=n
@@ -107,6 +106,7 @@ CONFIG_PACKAGE_kmod-veth=y
 CONFIG_PACKAGE_kmod-br-netfilter=y
 CONFIG_PACKAGE_kmod-nf-conntrack-netlink=y
 CONFIG_PACKAGE_kmod-tap=y
+
 # 1. 允许 Docker 容器直接操作磁盘分区 (如果你要在 Docker 里跑挂载任务)
 CONFIG_PACKAGE_kmod-loop=y
 
