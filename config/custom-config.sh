@@ -78,8 +78,8 @@ CONFIG_PACKAGE_dnsmasq_full_nls=y
 CONFIG_PACKAGE_luci-app-dnsmasq=y
 
 # PassWall2 预编译（核心依赖齐全）
-CONFIG_PACKAGE_luci-app-passwall2=y
-CONFIG_PACKAGE_luci-i18n-passwall2-zh-cn=y
+CONFIG_PACKAGE_luci-app-passwall=y
+CONFIG_PACKAGE_luci-i18n-passwall-zh-cn=y
 CONFIG_PACKAGE_sing-box=y
 CONFIG_PACKAGE_chinadns-ng=y
 CONFIG_PACKAGE_v2ray-geoip=y
