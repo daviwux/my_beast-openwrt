@@ -45,23 +45,20 @@ jobs:
           [ -f ../config/feeds.conf.custom ] && cat ../config/feeds.conf.custom >> feeds.conf.default
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-          
-          - name: 执行自定义配置
-          working-directory: openwrt
-           run: |
-          # 1. 更新并安装 Feeds
+      
+      - name: 执行自定义配置
+        working-directory: openwrt
+        run: |
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-
-          # 2. 物理搬运 dnsmasq 以绕过索引检查
+          
           mkdir -p package/custom-dnsmasq
           cp -r package/network/services/dnsmasq/* package/custom-dnsmasq/
           
-          # 3. 运行你的修正脚本
           chmod +x ../config/custom-config.sh
           ../config/custom-config.sh $(pwd)
-
-          # 4. 强行锁定配置到 .config (核心保底)
+          
+          sed -i '/CONFIG_PACKAGE_dnsmasq/d' .config
           echo "CONFIG_PACKAGE_dnsmasq=n" >> .config
           echo "CONFIG_PACKAGE_dnsmasq-full=y" >> .config
           echo "CONFIG_PACKAGE_dnsmasq_full_ipset=y" >> .config
@@ -69,15 +66,13 @@ jobs:
           echo "CONFIG_PACKAGE_dnsmasq_full_dhcpv6=y" >> .config
           echo "CONFIG_PACKAGE_libcrypt-compat=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-passwall=y" >> .config
-
-          # 5. 生成最终配置
+          
           make defconfig
           
-          # 6. 验证
           echo "========= Final Check ========="
           grep "CONFIG_PACKAGE_dnsmasq-full=y" .config && echo "DNSMASQ-FULL OK" || echo "DNSMASQ-FULL FAIL"
           grep "CONFIG_PACKAGE_luci-app-passwall=y" .config && echo "PASSWALL OK" || echo "PASSWALL FAIL"
-
+          
       - name: 编译固件（O3 优化）
         working-directory: openwrt
         run: |
