@@ -48,8 +48,11 @@ jobs:
 
       - name: 执行自定义配置脚本
         run: |
+          # 增加调试信息：打印当前路径
+          ls -R config/
           chmod +x config/custom-config.sh
-          ./config/custom-config.sh $(pwd)/openwrt
+          # 运行脚本并捕获错误日志
+          ./config/custom-config.sh $(pwd)/openwrt || { echo "脚本执行失败"; exit 1; }
 
       - name: 预配置 & 下载依赖
         working-directory: openwrt
