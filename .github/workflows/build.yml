@@ -82,6 +82,9 @@ jobs:
           echo "CONFIG_PACKAGE_libcrypt-compat=y" >> .config
           
           # 4. 强制锁定配置 (直接清理并注入)
+          # 先物理删除原有的 dnsmasq 目录，防止 Kconfig 扫描到两个 dnsmasq 产生循环依赖
+          rm -rf package/network/services/dnsmasq
+          
           sed -i '/CONFIG_PACKAGE_dnsmasq/d' .config
           {
             echo "CONFIG_PACKAGE_dnsmasq-full=y"
@@ -92,13 +95,16 @@ jobs:
             echo "CONFIG_PACKAGE_luci-app-passwall=y"
           } >> .config
           
-          # 5. 生成配置
+          # 5. 【关键】清理临时缓存并生成配置
+          # 这一步能解决 "recursive dependency detected" 报错
+          rm -rf tmp
           make defconfig
           
           # 6. 验证
           echo "========= Final Check ========="
           grep "CONFIG_PACKAGE_dnsmasq-full=y" .config && echo "DNSMASQ-FULL OK" || echo "DNSMASQ-FULL FAIL"
           grep "CONFIG_PACKAGE_luci-app-passwall=y" .config && echo "PASSWALL OK" || echo "PASSWALL FAIL"
+          grep "CONFIG_PACKAGE_libcrypt-compat=y" .config && echo "LIBCRYPT-COMPAT OK" || echo "LIBCRYPT-COMPAT FAIL"
      
       - name: 编译固件（O3 优化）
         working-directory: openwrt
