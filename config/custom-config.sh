@@ -10,23 +10,26 @@
 #   - 网页管理 IP：192.168.1.2
 # ==================================================
 
-TARGET_DIR=${1:-$(pwd)/openwrt}
-cd "$TARGET_DIR" || { echo "目录错误"; exit 1; }
+TARGET_DIR=${1:-$(pwd)}
+cd "$TARGET_DIR"
 
-# === DNSMASQ 满血替换逻辑 ===
+# === DNSMASQ 满血替换逻辑 (兼容 24.10) ===
 
-# 1. 从全局默认包中移除精简版 dnsmasq (x86 架构通常在这些地方定义)
-# 我们要把默认的 dnsmasq 删掉，防止它被强行拉回
+# 1. 逻辑屏蔽：不删除文件夹，但修改其 Makefile 让他不再被系统识别为 dnsmasq
+# 这样 firewall4 检查依赖时，会转而寻找我们注入的 dnsmasq-full
+if [ -d "package/network/services/dnsmasq" ]; then
+    sed -i 's/^Package\/dnsmasq$/Package\/dnsmasq-nodrop/g' package/network/services/dnsmasq/Makefile
+fi
+
+# 2. 清理全局默认安装包
 sed -i 's/dnsmasq//g' include/target.mk
 sed -i 's/dnsmasq//g' target/linux/x86/Makefile
 
-# 2. 物理移除精简版源码，腾出包名位置
-rm -rf package/network/services/dnsmasq
-
-# 3. 强制在 .config 中锁定满血版
-# 这样 make defconfig 看到有 full 版，就不会因为找不到精简版而报错了
+# 3. 注入配置（务必确保后续 cat 使用 >> 追加模式）
 echo "CONFIG_PACKAGE_dnsmasq=n" >> .config
 echo "CONFIG_PACKAGE_dnsmasq-full=y" >> .config
+echo "CONFIG_PACKAGE_dnsmasq_full_ipset=y" >> .config
+echo "CONFIG_PACKAGE_dnsmasq_full_nftset=y" >> .config
 echo "CONFIG_PACKAGE_dnsmasq_full_dhcpv6=y" >> .config
 # 固定管理 IP 为 192.168.1.2
 sed -i 's/192.168.1.1/192.168.1.2/g' package/base-files/files/bin/config_generate
