@@ -61,7 +61,8 @@ jobs:
 
           # 2. 关键补丁：手动安装 passwall 必须的核心依赖
           # 这步会直接在 package/feeds/ 下建立物理软链接，消除 "does not exist"
-          ./scripts/feeds install dnsmasq-full sing-box chinadns-ng
+          ./scripts/feeds install -p packages dnsmasq-full
+          ./scripts/feeds install -p passwall_packages sing-box chinadns-ng
           
           # 3. 再次执行全量安装 (刷新所有软链接索引)
           ./scripts/feeds install -a
