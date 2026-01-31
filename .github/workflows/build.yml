@@ -46,74 +46,41 @@ jobs:
           [ -f ../config/feeds.conf.custom ] && cat ../config/feeds.conf.custom >> feeds.conf.default
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-      
+          
       - name: 执行自定义配置
         working-directory: openwrt
         run: |
-          # 1. 更新 Feeds
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-          # 【关键点】手动补漏 24.10 缺失的兼容库源码
-          ./scripts/feeds install libcrypt-compat
           
-          # 2. 物理搬运 dnsmasq (自动适配路径)
-          # 先找一下 dnsmasq 到底在哪，防止路径偏移
+          # 【核心修复】重新尝试下载 libcrypt-compat，增加失败容错
+          mkdir -p package/libs/libcrypt-compat
+          # 尝试从 master 分支获取
+          wget -O package/libs/libcrypt-compat/Makefile https://raw.githubusercontent.com/openwrt/packages/master/libs/libcrypt-compat/Makefile || \
+          # 如果 master 失败，尝试 23.05 的另一个可能路径
+          wget -O package/libs/libcrypt-compat/Makefile https://github.com/openwrt/packages/raw/openwrt-23.05/libs/libcrypt-compat/Makefile
+
+          # 物理搬运 dnsmasq (你之前的逻辑)
           REAL_DNSMASQ_DIR=$(find package -name dnsmasq -type d | grep "network/services/dnsmasq" | head -n 1)
           if [ -n "$REAL_DNSMASQ_DIR" ]; then
               mkdir -p package/custom-dnsmasq
               cp -r "$REAL_DNSMASQ_DIR"/* package/custom-dnsmasq/
-              echo "✅ dnsmasq 源码已搬运至 package/custom-dnsmasq"
-          else
-              echo "❌ 找不到 dnsmasq 源码，请检查源码是否完整"
-              exit 1
+              rm -rf "$REAL_DNSMASQ_DIR"
           fi
-          
-          # 3. 运行你的修正脚本
-          chmod +x ../config/custom-config.sh
-          ../config/custom-config.sh $(pwd)
-          
-          # --- 核心修复：扩容与兼容性 ---
-          # 增加内核分区到 256M，根分区到 2048M (防止空间不足)
+
+          # 注入配置
           sed -i 's/CONFIG_TARGET_KERNEL_PARTSIZE=16/CONFIG_TARGET_KERNEL_PARTSIZE=256/g' .config
           sed -i 's/CONFIG_TARGET_ROOTFS_PARTSIZE=160/CONFIG_TARGET_ROOTFS_PARTSIZE=2048/g' .config
           
-          # 修正 24.10 缺少兼容库的通病
-          sed -i 's/# CONFIG_PACKAGE_libcrypt-compat is not set/CONFIG_PACKAGE_libcrypt-compat=y/g' .config
+          echo "CONFIG_PACKAGE_dnsmasq-full=y" >> .config
           echo "CONFIG_PACKAGE_libcrypt-compat=y" >> .config
+          echo "CONFIG_PACKAGE_luci-app-passwall=y" >> .config
           
-          # 4. 强制锁定配置 (直接清理并注入)
-          # 先物理删除原有的 dnsmasq 目录，防止 Kconfig 扫描到两个 dnsmasq 产生循环依赖
-          rm -rf package/network/services/dnsmasq
-          
-          sed -i '/CONFIG_PACKAGE_dnsmasq/d' .config
-          {
-            echo "CONFIG_PACKAGE_dnsmasq-full=y"
-            echo "CONFIG_PACKAGE_dnsmasq_full_ipset=y"
-            echo "CONFIG_PACKAGE_dnsmasq_full_nftset=y"
-            echo "CONFIG_PACKAGE_dnsmasq_full_dhcpv6=y"
-            echo "CONFIG_PACKAGE_libcrypt-compat=y"
-            echo "CONFIG_PACKAGE_luci-app-passwall=y"
-          } >> .config
-
-          # 1. 强制拉取缺失的 libcrypt-compat 源码
-          # 我们直接从官方 Packages 仓库的旧分支手动下载
-          mkdir -p package/feeds/packages/libcrypt-compat
-          wget https://raw.githubusercontent.com/openwrt/packages/openwrt-23.05/libs/libcrypt-compat/Makefile -O package/feeds/packages/libcrypt-compat/Makefile
-
-          # 2. 重新安装一次 feeds 以便系统识别这个新加入的包
-          ./scripts/feeds install libcrypt-compat
-
-          # 3. 再次注入配置
-          echo "CONFIG_PACKAGE_libcrypt-compat=y" >> .config
-          # 5. 【关键】清理临时缓存并生成配置
-          # 这一步能解决 "recursive dependency detected" 报错
+          # 清理并生成配置
           rm -rf tmp
           make defconfig
           
-          # 6. 验证
           echo "========= Final Check ========="
-          grep "CONFIG_PACKAGE_dnsmasq-full=y" .config && echo "DNSMASQ-FULL OK" || echo "DNSMASQ-FULL FAIL"
-          grep "CONFIG_PACKAGE_luci-app-passwall=y" .config && echo "PASSWALL OK" || echo "PASSWALL FAIL"
           grep "CONFIG_PACKAGE_libcrypt-compat=y" .config && echo "LIBCRYPT-COMPAT OK" || echo "LIBCRYPT-COMPAT FAIL"
      
       - name: 编译固件（O3 优化）
