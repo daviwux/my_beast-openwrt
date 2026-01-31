@@ -57,15 +57,19 @@ jobs:
       - name: 预配置 & 下载依赖
         working-directory: openwrt
         run: |
-          # 1. 先生成一份默认的 .config (这一步保证了架构信息存在)
-          touch .config
-          
-          # 2. 执行你的脚本进行“手术”
-          # 确保脚本里使用 >> 追加，而不是 > 覆盖
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: 执行自定义配置
+        working-directory: openwrt
+        run: |
+          # 给予脚本权限并运行
           chmod +x ../config/custom-config.sh
           ../config/custom-config.sh $(pwd)
+          
+          # 关键：运行完脚本后再 install 一次，确保重命名后的包被识别
+          ./scripts/feeds install -a
           make defconfig
-          make download -j$(nproc) || make download -j1 V=s
 
       - name: 编译固件（O3 优化）
         working-directory: openwrt
