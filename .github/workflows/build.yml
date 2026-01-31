@@ -23,7 +23,8 @@ jobs:
           g++-multilib gettext git libncurses5-dev libssl-dev python3-pyelftools \
           python3-setuptools rsync unzip zlib1g-dev file wget zstd libzstd-dev \
           libelf-dev bc libpam0g-dev libev-dev libtirpc-dev libsnmp-dev liblzma-dev \
-          libfdt-dev device-tree-compiler libssl-dev qemu-utils mkisofs
+          libfdt-dev device-tree-compiler libssl-dev qemu-utils mkisofs libncurses5-dev \
+          libssl-dev libelf-dev libfdt-dev device-tree-compiler qemu-utils mkisofs
       
       - name: 克隆 OpenWrt 源码
         run: |
@@ -75,7 +76,7 @@ jobs:
           sed -i 's/CONFIG_TARGET_ROOTFS_PARTSIZE=160/CONFIG_TARGET_ROOTFS_PARTSIZE=2048/g' .config
           
           # 修正 24.10 缺少兼容库的通病
-          d -i 's/# CONFIG_PACKAGE_libcrypt-compat is not set/CONFIG_PACKAGE_libcrypt-compat=y/g' .config
+          sed -i 's/# CONFIG_PACKAGE_libcrypt-compat is not set/CONFIG_PACKAGE_libcrypt-compat=y/g' .config
           echo "CONFIG_PACKAGE_libcrypt-compat=y" >> .config
           
           # 4. 强制锁定配置 (直接清理并注入)
