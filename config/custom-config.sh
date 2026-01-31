@@ -18,19 +18,17 @@ cd "$TARGET_DIR"
 # 1. 逻辑屏蔽：不删除文件夹，但修改其 Makefile 让他不再被系统识别为 dnsmasq
 # 这样 firewall4 检查依赖时，会转而寻找我们注入的 dnsmasq-full
 if [ -d "package/network/services/dnsmasq" ]; then
-    sed -i 's/^Package\/dnsmasq$/Package\/dnsmasq-nodrop/g' package/network/services/dnsmasq/Makefile
+    sed -i 's/^Package\/dnsmasq$/Package\/dnsmasq-old/g' package/network/services/dnsmasq/Makefile
 fi
 
-# 2. 清理全局默认安装包
+# 2. 从 target 默认包列表移除 dnsmasq (保持你原来的 sed 逻辑)
 sed -i 's/dnsmasq//g' include/target.mk
 sed -i 's/dnsmasq//g' target/linux/x86/Makefile
 
-# 3. 注入配置（务必确保后续 cat 使用 >> 追加模式）
+# 3. 强制在 .config 中锁定满血版
+# 这里用追加模式 >>
 echo "CONFIG_PACKAGE_dnsmasq=n" >> .config
 echo "CONFIG_PACKAGE_dnsmasq-full=y" >> .config
-echo "CONFIG_PACKAGE_dnsmasq_full_ipset=y" >> .config
-echo "CONFIG_PACKAGE_dnsmasq_full_nftset=y" >> .config
-echo "CONFIG_PACKAGE_dnsmasq_full_dhcpv6=y" >> .config
 # 固定管理 IP 为 192.168.1.2
 sed -i 's/192.168.1.1/192.168.1.2/g' package/base-files/files/bin/config_generate
 
