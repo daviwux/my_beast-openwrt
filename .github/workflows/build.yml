@@ -55,21 +55,23 @@ jobs:
       - name: 执行自定义配置
         working-directory: openwrt
         run: |
-          # 1. 先运行你的脚本（执行改名手术）
+          # 1. 物理清理残留的索引和临时文件，防止 "Ignoring feed"
+          rm -rf ./feeds/*.index ./feeds/*.tmp ./package/feeds
+          
+          # 2. 重新更新 (这一步必须成功，不能有 Error)
+          ./scripts/feeds update -a
+          
+          # 3. 运行你的手术脚本 (改名 dnsmasq 等)
           chmod +x ../config/custom-config.sh
           ../config/custom-config.sh $(pwd)
-
-          # 2. 关键：手动清理 feeds 索引缓存，强迫系统重新扫描
-          rm -rf ./feeds/*.index
-          rm -rf ./feeds/*.tmp
-         
-          # 这一步会直接在 package/feeds/ 下建立软连接，消除 "does not exist"
-          ./scripts/feeds install dnsmasq-full sing-box chinadns-ng
           
-          # 4. 重新安装所有 feeds，这次它会根据你改名后的 Makefile 重新建立联系
+          # 4. 重新安装
           ./scripts/feeds install -a
           
-          # 5. 最后执行 defconfig
+          # 5. 补丁：手动安装 PassWall 依赖，确保万无一失
+          ./scripts/feeds install dnsmasq-full
+          
+          # 6. 生成配置
           make defconfig
 
       - name: 编译固件（O3 优化）
