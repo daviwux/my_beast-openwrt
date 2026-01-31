@@ -53,6 +53,8 @@ jobs:
           # 1. 更新 Feeds
           ./scripts/feeds update -a
           ./scripts/feeds install -a
+          # 【关键点】手动补漏 24.10 缺失的兼容库源码
+          ./scripts/feeds install libcrypt-compat
           
           # 2. 物理搬运 dnsmasq (自动适配路径)
           # 先找一下 dnsmasq 到底在哪，防止路径偏移
