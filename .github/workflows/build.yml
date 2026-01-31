@@ -94,7 +94,17 @@ jobs:
             echo "CONFIG_PACKAGE_libcrypt-compat=y"
             echo "CONFIG_PACKAGE_luci-app-passwall=y"
           } >> .config
-          
+
+          # 1. 强制拉取缺失的 libcrypt-compat 源码
+          # 我们直接从官方 Packages 仓库的旧分支手动下载
+          mkdir -p package/feeds/packages/libcrypt-compat
+          wget https://raw.githubusercontent.com/openwrt/packages/openwrt-23.05/libs/libcrypt-compat/Makefile -O package/feeds/packages/libcrypt-compat/Makefile
+
+          # 2. 重新安装一次 feeds 以便系统识别这个新加入的包
+          ./scripts/feeds install libcrypt-compat
+
+          # 3. 再次注入配置
+          echo "CONFIG_PACKAGE_libcrypt-compat=y" >> .config
           # 5. 【关键】清理临时缓存并生成配置
           # 这一步能解决 "recursive dependency detected" 报错
           rm -rf tmp
