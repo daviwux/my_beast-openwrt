@@ -46,37 +46,36 @@ jobs:
           [ -f ../config/feeds.conf.custom ] && cat ../config/feeds.conf.custom >> feeds.conf.default
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-          
+        
       - name: 执行自定义配置
         working-directory: openwrt
         run: |
+          # 1. 注入一个包含 libcrypt-compat 的旧版源 (使用 23.05 的 packages 源作为补充)
+          echo "src-git old_packages https://github.com/openwrt/packages.git;openwrt-23.05" >> feeds.conf.default
+          
+          # 2. 更新并安装
           ./scripts/feeds update -a
           ./scripts/feeds install -a
           
-          # 【核心修复】重新尝试下载 libcrypt-compat，增加失败容错
-          mkdir -p package/libs/libcrypt-compat
-          # 尝试从 master 分支获取
-          wget -O package/libs/libcrypt-compat/Makefile https://raw.githubusercontent.com/openwrt/packages/master/libs/libcrypt-compat/Makefile || \
-          # 如果 master 失败，尝试 23.05 的另一个可能路径
-          wget -O package/libs/libcrypt-compat/Makefile https://github.com/openwrt/packages/raw/openwrt-23.05/libs/libcrypt-compat/Makefile
-
-          # 物理搬运 dnsmasq (你之前的逻辑)
+          # 3. 物理搬运 dnsmasq (保持原样)
           REAL_DNSMASQ_DIR=$(find package -name dnsmasq -type d | grep "network/services/dnsmasq" | head -n 1)
           if [ -n "$REAL_DNSMASQ_DIR" ]; then
               mkdir -p package/custom-dnsmasq
               cp -r "$REAL_DNSMASQ_DIR"/* package/custom-dnsmasq/
               rm -rf "$REAL_DNSMASQ_DIR"
           fi
-
-          # 注入配置
+          
+          # 4. 注入配置
           sed -i 's/CONFIG_TARGET_KERNEL_PARTSIZE=16/CONFIG_TARGET_KERNEL_PARTSIZE=256/g' .config
           sed -i 's/CONFIG_TARGET_ROOTFS_PARTSIZE=160/CONFIG_TARGET_ROOTFS_PARTSIZE=2048/g' .config
           
-          echo "CONFIG_PACKAGE_dnsmasq-full=y" >> .config
-          echo "CONFIG_PACKAGE_libcrypt-compat=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-passwall=y" >> .config
+          cat >> .config <<EOF
+          CONFIG_PACKAGE_dnsmasq-full=y
+          CONFIG_PACKAGE_libcrypt-compat=y
+          CONFIG_PACKAGE_luci-app-passwall=y
+          EOF
           
-          # 清理并生成配置
+          # 5. 清理索引并生成配置
           rm -rf tmp
           make defconfig
           
