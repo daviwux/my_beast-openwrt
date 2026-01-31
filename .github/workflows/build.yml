@@ -50,42 +50,32 @@ jobs:
       - name: 执行自定义配置
         working-directory: openwrt
         run: |
-          # 1. 注入旧版源并更新 (这一步你已经成功了)
-          echo "src-git old_packages https://github.com/openwrt/packages.git;openwrt-23.05" >> feeds.conf.default
+          # 1. 更新基础 Feeds (不引入 old_packages，避免递归依赖报错)
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-          
-          # 2. 物理搬运 dnsmasq
-          REAL_DNSMASQ_DIR=$(find package -name dnsmasq -type d | grep "network/services/dnsmasq" | head -n 1)
-          if [ -n "$REAL_DNSMASQ_DIR" ]; then
-              mkdir -p package/custom-dnsmasq
-              cp -r "$REAL_DNSMASQ_DIR"/* package/custom-dnsmasq/
-              rm -rf "$REAL_DNSMASQ_DIR"
-          fi
 
-          # 3. 【关键修改】运行自定义脚本生成基础 .config
-          # 如果你的脚本里有 cp xxx .config，确保它在这里执行
+          # 2. 【核心修复】物理拉取 libcrypt-compat 源码到本地 package 目录
+          # 这样它就变成了“本地包”，优先级最高，且不会触发 Feed 循环依赖
+          mkdir -p package/libs/libcrypt-compat
+          wget https://raw.githubusercontent.com/openwrt/packages/openwrt-23.05/libs/libcrypt-compat/Makefile -O package/libs/libcrypt-compat/Makefile
+
+          # 3. 运行你的 3.9.2 脚本
           chmod +x ../config/custom-config.sh
           ../config/custom-config.sh $(pwd)
-          
-          # 如果执行完脚本还是没有 .config，就创建一个空的，防止 sed 报错
-          [ ! -e .config ] && touch .config
 
-          # 4. 现在执行 sed 就不会报错了
-          sed -i 's/CONFIG_TARGET_KERNEL_PARTSIZE=16/CONFIG_TARGET_KERNEL_PARTSIZE=256/g' .config
-          sed -i 's/CONFIG_TARGET_ROOTFS_PARTSIZE=160/CONFIG_TARGET_ROOTFS_PARTSIZE=2048/g' .config
+          # 4. 强制注入并清理
+          # 确保这一行在脚本运行之后执行，覆盖脚本可能的改动
+          sed -i '/CONFIG_PACKAGE_libcrypt-compat/d' .config
+          echo "CONFIG_PACKAGE_libcrypt-compat=y" >> .config
           
-          # 5. 注入核心配置
-          cat >> .config <<EOF
-          CONFIG_PACKAGE_dnsmasq-full=y
-          CONFIG_PACKAGE_libcrypt-compat=y
-          CONFIG_PACKAGE_luci-app-passwall=y
-          EOF
-          
-          # 6. 让系统根据注入的配置补全依赖
+          # 物理删除冲突的 dnsmasq
+          rm -rf package/network/services/dnsmasq
+
+          # 5. 生成配置
           rm -rf tmp
           make defconfig
-          
+
+          # 6. 验证
           echo "========= Final Check ========="
           grep "CONFIG_PACKAGE_libcrypt-compat=y" .config && echo "LIBCRYPT-COMPAT OK" || echo "LIBCRYPT-COMPAT FAIL"
      
