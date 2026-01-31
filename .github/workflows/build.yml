@@ -22,6 +22,10 @@ jobs:
       - name: 克隆 OpenWrt 源码
         run: |
           git clone --depth 1 https://github.com/openwrt/openwrt.git -b v24.10.5 openwrt
+          # 核心修复：将 feeds.conf.default 中的官方 git.openwrt.org 替换为稳定的 github.com 镜像
+          # 这样可以完美避开 503 错误
+          sed -i 's|https://git.openwrt.org/feed/|https://github.com/openwrt/|g' openwrt/feeds.conf.default
+          sed -i 's|https://git.openwrt.org/openwrt/|https://github.com/openwrt/|g' openwrt/feeds.conf.default
           sudo chown -R runner:docker openwrt
 
       - name: 彻底移除冲突包 (关键)
