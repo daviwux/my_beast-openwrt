@@ -46,36 +46,43 @@ jobs:
           [ -f ../config/feeds.conf.custom ] && cat ../config/feeds.conf.custom >> feeds.conf.default
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-        
+      
       - name: 执行自定义配置
         working-directory: openwrt
         run: |
-          # 1. 注入一个包含 libcrypt-compat 的旧版源 (使用 23.05 的 packages 源作为补充)
+          # 1. 注入旧版源并更新 (这一步你已经成功了)
           echo "src-git old_packages https://github.com/openwrt/packages.git;openwrt-23.05" >> feeds.conf.default
-          
-          # 2. 更新并安装
           ./scripts/feeds update -a
           ./scripts/feeds install -a
           
-          # 3. 物理搬运 dnsmasq (保持原样)
+          # 2. 物理搬运 dnsmasq
           REAL_DNSMASQ_DIR=$(find package -name dnsmasq -type d | grep "network/services/dnsmasq" | head -n 1)
           if [ -n "$REAL_DNSMASQ_DIR" ]; then
               mkdir -p package/custom-dnsmasq
               cp -r "$REAL_DNSMASQ_DIR"/* package/custom-dnsmasq/
               rm -rf "$REAL_DNSMASQ_DIR"
           fi
+
+          # 3. 【关键修改】运行自定义脚本生成基础 .config
+          # 如果你的脚本里有 cp xxx .config，确保它在这里执行
+          chmod +x ../config/custom-config.sh
+          ../config/custom-config.sh $(pwd)
           
-          # 4. 注入配置
+          # 如果执行完脚本还是没有 .config，就创建一个空的，防止 sed 报错
+          [ ! -e .config ] && touch .config
+
+          # 4. 现在执行 sed 就不会报错了
           sed -i 's/CONFIG_TARGET_KERNEL_PARTSIZE=16/CONFIG_TARGET_KERNEL_PARTSIZE=256/g' .config
           sed -i 's/CONFIG_TARGET_ROOTFS_PARTSIZE=160/CONFIG_TARGET_ROOTFS_PARTSIZE=2048/g' .config
           
+          # 5. 注入核心配置
           cat >> .config <<EOF
           CONFIG_PACKAGE_dnsmasq-full=y
           CONFIG_PACKAGE_libcrypt-compat=y
           CONFIG_PACKAGE_luci-app-passwall=y
           EOF
           
-          # 5. 清理索引并生成配置
+          # 6. 让系统根据注入的配置补全依赖
           rm -rf tmp
           make defconfig
           
