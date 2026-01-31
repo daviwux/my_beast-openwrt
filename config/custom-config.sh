@@ -152,22 +152,27 @@ CONFIG_PACKAGE_htop=y
 CONFIG_PACKAGE_ttyd=y
 CONFIG_PACKAGE_luci-app-ttyd=y
 CONFIG_PACKAGE_autocore=y
-# 1. 分区表调整工具 (对应脚本中的 growpart)
+# 1. 分区表调整核心工具
 CONFIG_PACKAGE_cloud-utils-growpart=y
+CONFIG_PACKAGE_gawk=y
 
-# 2. 磁盘分区刷新工具 (对应脚本中的 partprobe)
+# 2. 磁盘分区刷新与识别
 CONFIG_PACKAGE_parted=y
+CONFIG_PACKAGE_partx-utils=y
+CONFIG_PACKAGE_lsblk=y
 
-# 3. 文件系统调整工具 (对应脚本中的 resize2fs 和 e2fsck)
+# 3. 文件系统修复与拉伸
 CONFIG_PACKAGE_e2fsprogs=y
+CONFIG_PACKAGE_e2fsck=y
+CONFIG_PACKAGE_resize2fs=y
 
-# 4. 挂载查询工具 (对应脚本中的 findmnt)
+# 4. 路径查询工具
 CONFIG_PACKAGE_util-linux=y
 CONFIG_PACKAGE_util-linux-findmnt=y
 
-# 5. 基础系统工具 (确保脚本执行环境)
+# 5. 基础运行环境
 CONFIG_PACKAGE_bash=y
-CONFIG_PACKAGE_lsblk=y
+CONFIG_PACKAGE_fdisk=y
 EOF
 
 # 性能调优 sysctl（通用优化）
@@ -225,19 +230,34 @@ cat > package/base-files/files/etc/rc.local <<'EOF'
 #!/bin/sh
 ulimit -n 1048576
 
-# 自动扩容 rootfs (优化版)
+# 离线自动扩容 (fdisk 兼容版)
 [ -f /etc/.expanded ] || {
-    logger -t expand "开始自动扩容..."
-    ROOT_PART=$(findmnt -no SOURCE /)
-    [ "$ROOT_PART" ] && {
-        # 已经在固件里内置了工具，直接调用
-        DISK=${ROOT_PART%[0-9]*}
-        PART_NUM=${ROOT_PART##*[a-z]}
-        /usr/bin/growpart "$DISK" "$PART_NUM" && /usr/sbin/partprobe "$DISK"
-        /usr/sbin/e2fsck -f -y "$ROOT_PART"
-        /usr/sbin/resize2fs "$ROOT_PART" && logger -t expand "扩容完成"
-    }
-    touch /etc/.expanded
+    logger -t expand "正在识别磁盘并离线扩容..."
+    ROOT_PART=$(mount | grep ' / ' | cut -d' ' -f1)
+    DISK=$(echo $ROOT_PART | sed 's/[0-9]*$//')
+    PART_NUM=$(echo $ROOT_PART | sed 's/.*[^0-9]//')
+
+    if [ -b "$DISK" ]; then
+        # 第一步：修改物理分区表
+        (
+            echo d # 删除原分区
+            echo "$PART_NUM"
+            echo n # 新建分区
+            echo p # 主分区
+            echo "$PART_NUM"
+            echo   # 默认起始位置
+            echo   # 默认结束位置（自动占满全盘）
+            echo w # 写入并退出
+        ) | fdisk "$DISK"
+
+        # 第二步：设定重启后自动执行文件系统拉伸
+        sed -i '/resize2fs/d' /etc/rc.local
+        echo "resize2fs $ROOT_PART && touch /etc/.expanded && logger -t expand '全盘扩容圆满完成' && reboot" >> /etc/rc.local
+        
+        logger -t expand "分区表已修改，系统即将重启以完成扩容..."
+        sync
+        reboot
+    fi
 }
 
 # 防火墙启动
