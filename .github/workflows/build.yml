@@ -55,24 +55,20 @@ jobs:
       - name: 执行自定义配置
         working-directory: openwrt
         run: |
-          # 1. 物理清理残留的索引和临时文件，防止 "Ignoring feed"
-          rm -rf ./feeds/*.index ./feeds/*.tmp ./package/feeds
-          
-          # 2. 重新更新 (这一步必须成功，不能有 Error)
-          ./scripts/feeds update -a
-          
-          # 3. 运行你的手术脚本 (改名 dnsmasq 等)
+          # 1. 运行你的自定义脚本 (执行改名手术)
           chmod +x ../config/custom-config.sh
           ../config/custom-config.sh $(pwd)
-          
-          # 4. 重新安装
-          ./scripts/feeds install -a
-          
-          # 5. 补丁：手动安装 PassWall 依赖，确保万无一失
+
+          # 2. 关键补丁：手动安装 passwall 必须的核心依赖
+          # 这步会直接在 package/feeds/ 下建立物理软链接，消除 "does not exist"
           ./scripts/feeds install dnsmasq-full sing-box chinadns-ng
           
-          # 6. 生成配置
+          # 3. 再次执行全量安装 (刷新所有软链接索引)
+          ./scripts/feeds install -a
+          
+          # 4. 生成配置并验证 PassWall 是否选上
           make defconfig
+          grep "CONFIG_PACKAGE_luci-app-passwall=y" .config || echo "警告: PassWall 没选上！"
 
       - name: 编译固件（O3 优化）
         working-directory: openwrt
