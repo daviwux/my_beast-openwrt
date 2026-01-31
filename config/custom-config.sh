@@ -13,27 +13,32 @@
 TARGET_DIR=${1:-$(pwd)}
 cd "$TARGET_DIR"
 
-# === DNSMASQ 满血替换逻辑 (兼容 24.10) ===
+# === DNSMASQ 满血替换逻辑 (兼容 24.10 精准版) ===
 
-# 1. 逻辑屏蔽：不删除文件夹，但修改其 Makefile 让他不再被系统识别为 dnsmasq
-# 这样 firewall4 检查依赖时，会转而寻找我们注入的 dnsmasq-full
-# 1. 逻辑重命名 (手术核心)
+# 1. 不要改名 Package/dnsmasq，而是通过修改其内容让它失效
+# 这样系统依然能识别到 dnsmasq-full 变体存在
 if [ -d "package/network/services/dnsmasq" ]; then
-    sed -i 's/^Package\/dnsmasq$/Package\/dnsmasq-old/g' package/network/services/dnsmasq/Makefile
+    # 取消 dnsmasq 对默认配置的占用，但不破坏 Makefile 结构
+    sed -i 's/DEFAULT:=y/DEFAULT:=n/g' package/network/services/dnsmasq/Makefile
 fi
 
-# 2. 批量将第三方包的依赖从 dnsmasq 指向 dnsmasq-full
-# 使用 \b 匹配单词边界，防止误伤
+# 2. 批量修正第三方包的依赖（这步你写的很好，保留 \b）
 find package/feeds/ -name Makefile -exec sed -i 's/+dnsmasq\b/+dnsmasq-full/g' {} +
 
-# 2. 从 target 默认包列表移除 dnsmasq (保持你原来的 sed 逻辑)
-sed -i 's/dnsmasq//g' include/target.mk
-sed -i 's/dnsmasq//g' target/linux/x86/Makefile
+# 3. 从 target 默认包列表移除 dnsmasq
+sed -i 's/\bdnsmasq\b//g' include/target.mk
+sed -i 's/\bdnsmasq\b//g' target/linux/x86/Makefile
 
-# 3. 强制在 .config 中锁定满血版
-# 这里用追加模式 >>
+# 4. 强制注入 .config
+# 先清理旧的，再追加，确保唯一性
+sed -i '/CONFIG_PACKAGE_dnsmasq/d' .config
 echo "CONFIG_PACKAGE_dnsmasq=n" >> .config
 echo "CONFIG_PACKAGE_dnsmasq-full=y" >> .config
+# 开启 dnsmasq-full 的所有功能（ipset/nftset/dhcpv6）
+echo "CONFIG_PACKAGE_dnsmasq_full_ipset=y" >> .config
+echo "CONFIG_PACKAGE_dnsmasq_full_nftset=y" >> .config
+echo "CONFIG_PACKAGE_dnsmasq_full_dhcpv6=y" >> .config
+
 # 固定管理 IP 为 192.168.1.2
 sed -i 's/192.168.1.1/192.168.1.2/g' package/base-files/files/bin/config_generate
 
