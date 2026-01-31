@@ -57,6 +57,13 @@ jobs:
       - name: 预配置 & 下载依赖
         working-directory: openwrt
         run: |
+          # 1. 先生成一份默认的 .config (这一步保证了架构信息存在)
+          touch .config
+          
+          # 2. 执行你的脚本进行“手术”
+          # 确保脚本里使用 >> 追加，而不是 > 覆盖
+          chmod +x ../config/custom-config.sh
+          ../config/custom-config.sh $(pwd)
           make defconfig
           make download -j$(nproc) || make download -j1 V=s
 
