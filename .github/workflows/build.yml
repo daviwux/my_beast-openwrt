@@ -65,6 +65,13 @@ jobs:
           chmod +x ../config/custom-config.sh
           ../config/custom-config.sh $(pwd)
           
+          # --- 核心修复：扩容与兼容性 ---
+          # 增加内核分区到 256M，根分区到 2048M (防止空间不足)
+          sed -i 's/CONFIG_TARGET_KERNEL_PARTSIZE=16/CONFIG_TARGET_KERNEL_PARTSIZE=256/g' .config
+          sed -i 's/CONFIG_TARGET_ROOTFS_PARTSIZE=160/CONFIG_TARGET_ROOTFS_PARTSIZE=2048/g' .config
+          
+          # 强制开启 libcrypt 兼容库 (24.10 编译 PassWall 必做)
+          echo "CONFIG_PACKAGE_libcrypt-compat=y" >> .config
           # 4. 强制锁定配置 (直接清理并注入)
           sed -i '/CONFIG_PACKAGE_dnsmasq/d' .config
           {
@@ -78,7 +85,6 @@ jobs:
           } >> .config
           
           # 5. 生成配置
-          sed -i 's/# CONFIG_PACKAGE_libcrypt-compat is not set/CONFIG_PACKAGE_libcrypt-compat=y/g' .config
           make defconfig
           
           # 6. 验证
