@@ -55,21 +55,30 @@ jobs:
       - name: 执行自定义配置
         working-directory: openwrt
         run: |
-          # 1. 运行你的自定义脚本 (执行改名手术)
+         # 1. 运行自定义脚本 (执行改名手术)
           chmod +x ../config/custom-config.sh
           ../config/custom-config.sh $(pwd)
 
-          # 2. 关键补丁：手动安装 passwall 必须的核心依赖
-          # 这步会直接在 package/feeds/ 下建立物理软链接，消除 "does not exist"
-          ./scripts/feeds install -p packages dnsmasq-full
+          # 2. 关键补丁：先安装 passwall 依赖的第三方包
           ./scripts/feeds install -p passwall_packages sing-box chinadns-ng
           
-          # 3. 再次执行全量安装 (刷新所有软链接索引)
+          # 3. 核心修正：由于 dnsmasq-full 在 base 库，
+          # 如果之前脚本改名改坏了，我们在这里尝试恢复它的链接
           ./scripts/feeds install -a
           
-          # 4. 生成配置并验证 PassWall 是否选上
+          # 4. 手动检查并强制注入 (保底方案)
+          # 如果 defconfig 后发现没选上，通常是因为依赖包被系统逻辑踢出了
           make defconfig
+          
+          # 检查 dnsmasq-full 是否存在于 package 目录，如果不存在，说明手术脚本改过头了
+          if [ ! -d "package/network/services/dnsmasq" ]; then
+             echo "错误: dnsmasq 核心目录丢失，PassWall 必挂！"
+          fi
+
+          # 5. 验证结果
+          echo "========= 最终配置校验 ========="
           grep "CONFIG_PACKAGE_luci-app-passwall=y" .config || echo "警告: PassWall 没选上！"
+          grep "CONFIG_PACKAGE_dnsmasq-full=y" .config || echo "警告: dnsmasq-full 没选上！"
 
       - name: 编译固件（O3 优化）
         working-directory: openwrt
