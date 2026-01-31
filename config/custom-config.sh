@@ -17,17 +17,19 @@ cd "$TARGET_DIR"
 
 # 1. 逻辑屏蔽：不删除文件夹，但修改其 Makefile 让他不再被系统识别为 dnsmasq
 # 这样 firewall4 检查依赖时，会转而寻找我们注入的 dnsmasq-full
+# 1. 逻辑重命名 (手术核心)
 if [ -d "package/network/services/dnsmasq" ]; then
     sed -i 's/^Package\/dnsmasq$/Package\/dnsmasq-old/g' package/network/services/dnsmasq/Makefile
 fi
+
+# 2. 批量将第三方包的依赖从 dnsmasq 指向 dnsmasq-full
+# 使用 \b 匹配单词边界，防止误伤
+find package/feeds/ -name Makefile -exec sed -i 's/+dnsmasq\b/+dnsmasq-full/g' {} +
 
 # 2. 从 target 默认包列表移除 dnsmasq (保持你原来的 sed 逻辑)
 sed -i 's/dnsmasq//g' include/target.mk
 sed -i 's/dnsmasq//g' target/linux/x86/Makefile
 
-# 修正后的批量替换逻辑
-find package/feeds/ -name Makefile -exec sed -i 's/+dnsmasq$/+dnsmasq-full/g' {} +
-find package/feeds/ -name Makefile -exec sed -i 's/+dnsmasq /+dnsmasq-full /g' {} +
 # 3. 强制在 .config 中锁定满血版
 # 这里用追加模式 >>
 echo "CONFIG_PACKAGE_dnsmasq=n" >> .config
