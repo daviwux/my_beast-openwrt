@@ -49,26 +49,42 @@ jobs:
       - name: 执行自定义配置
         working-directory: openwrt
         run: |
+          # 1. 更新 Feeds
           ./scripts/feeds update -a
           ./scripts/feeds install -a
           
-          mkdir -p package/custom-dnsmasq
-          cp -r package/network/services/dnsmasq/* package/custom-dnsmasq/
+          # 2. 物理搬运 dnsmasq (自动适配路径)
+          # 先找一下 dnsmasq 到底在哪，防止路径偏移
+          REAL_DNSMASQ_DIR=$(find package -name dnsmasq -type d | grep "network/services/dnsmasq" | head -n 1)
+          if [ -n "$REAL_DNSMASQ_DIR" ]; then
+              mkdir -p package/custom-dnsmasq
+              cp -r "$REAL_DNSMASQ_DIR"/* package/custom-dnsmasq/
+              echo "✅ dnsmasq 源码已搬运至 package/custom-dnsmasq"
+          else
+              echo "❌ 找不到 dnsmasq 源码，请检查源码是否完整"
+              exit 1
+          fi
           
+          # 3. 运行你的修正脚本
           chmod +x ../config/custom-config.sh
           ../config/custom-config.sh $(pwd)
           
+          # 4. 强制锁定配置 (直接清理并注入)
           sed -i '/CONFIG_PACKAGE_dnsmasq/d' .config
-          echo "CONFIG_PACKAGE_dnsmasq=n" >> .config
-          echo "CONFIG_PACKAGE_dnsmasq-full=y" >> .config
-          echo "CONFIG_PACKAGE_dnsmasq_full_ipset=y" >> .config
-          echo "CONFIG_PACKAGE_dnsmasq_full_nftset=y" >> .config
-          echo "CONFIG_PACKAGE_dnsmasq_full_dhcpv6=y" >> .config
-          echo "CONFIG_PACKAGE_libcrypt-compat=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-passwall=y" >> .config
+          {
+            echo "CONFIG_PACKAGE_dnsmasq=n"
+            echo "CONFIG_PACKAGE_dnsmasq-full=y"
+            echo "CONFIG_PACKAGE_dnsmasq_full_ipset=y"
+            echo "CONFIG_PACKAGE_dnsmasq_full_nftset=y"
+            echo "CONFIG_PACKAGE_dnsmasq_full_dhcpv6=y"
+            echo "CONFIG_PACKAGE_libcrypt-compat=y"
+            echo "CONFIG_PACKAGE_luci-app-passwall=y"
+          } >> .config
           
+          # 5. 生成配置
           make defconfig
           
+          # 6. 验证
           echo "========= Final Check ========="
           grep "CONFIG_PACKAGE_dnsmasq-full=y" .config && echo "DNSMASQ-FULL OK" || echo "DNSMASQ-FULL FAIL"
           grep "CONFIG_PACKAGE_luci-app-passwall=y" .config && echo "PASSWALL OK" || echo "PASSWALL FAIL"
