@@ -13,13 +13,21 @@
 TARGET_DIR=${1:-$(pwd)/openwrt}
 cd "$TARGET_DIR" || { echo "目录错误"; exit 1; }
 
-# === 这里是新增的 DNSMASQ 强制替换逻辑 ===
-# 1. 强制移除官方 feeds 中的精简版 dnsmasq，确保编译 dnsmasq-full
-# 这种方法修改 target.mk，让系统不再默认安装 dnsmasq
-sed -i 's/base-files/base-files dnsmasq/g' include/target.mk
-# 2. 简单粗暴地移除源码目录中的 dnsmasq，防止编译冲突
+# === DNSMASQ 满血替换逻辑 ===
+
+# 1. 从全局默认包中移除精简版 dnsmasq (x86 架构通常在这些地方定义)
+# 我们要把默认的 dnsmasq 删掉，防止它被强行拉回
+sed -i 's/dnsmasq//g' include/target.mk
+sed -i 's/dnsmasq//g' target/linux/x86/Makefile
+
+# 2. 物理移除精简版源码，腾出包名位置
 rm -rf package/network/services/dnsmasq
-# ==========================================
+
+# 3. 强制在 .config 中锁定满血版
+# 这样 make defconfig 看到有 full 版，就不会因为找不到精简版而报错了
+echo "CONFIG_PACKAGE_dnsmasq=n" >> .config
+echo "CONFIG_PACKAGE_dnsmasq-full=y" >> .config
+echo "CONFIG_PACKAGE_dnsmasq_full_dhcpv6=y" >> .config
 # 固定管理 IP 为 192.168.1.2
 sed -i 's/192.168.1.1/192.168.1.2/g' package/base-files/files/bin/config_generate
 
