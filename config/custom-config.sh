@@ -34,6 +34,12 @@ sed -i 's/\bdnsmasq\b//g' target/linux/x86/Makefile
 sed -i '/CONFIG_PACKAGE_dnsmasq/d' .config
 echo "CONFIG_PACKAGE_dnsmasq=n" >> .config
 echo "CONFIG_PACKAGE_dnsmasq-full=y" >> .config
+# 5. 补充关键库支持 (防止部分插件在 24.10 下找不到 libcrypt)
+echo "CONFIG_PACKAGE_libcrypt-compat=y" >> .config
+
+# 6. 禁用 dnsmasq 实例冲突
+# 有些固件会默认带两个 dnsmasq 实例，强制关闭基础实例
+echo "CONFIG_DNSMASQ_I18N=y" >> .config
 # 开启 dnsmasq-full 的所有功能（ipset/nftset/dhcpv6）
 echo "CONFIG_PACKAGE_dnsmasq_full_ipset=y" >> .config
 echo "CONFIG_PACKAGE_dnsmasq_full_nftset=y" >> .config
