@@ -69,6 +69,9 @@ CONFIG_PACKAGE_dnsmasq=n
 # 2. 启用满血版 DNSMASQ-FULL
 CONFIG_PACKAGE_dnsmasq-full=y
 
+# 修正 24.10 兼容性
+CONFIG_PACKAGE_libcrypt-compat=y
+
 # 3. 开启 DNSMASQ-FULL 的满血特性插件
 CONFIG_PACKAGE_dnsmasq_full_ipset=y
 CONFIG_PACKAGE_dnsmasq_full_nftset=y
