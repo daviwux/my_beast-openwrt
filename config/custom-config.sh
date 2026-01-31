@@ -25,6 +25,9 @@ fi
 sed -i 's/dnsmasq//g' include/target.mk
 sed -i 's/dnsmasq//g' target/linux/x86/Makefile
 
+# 修正后的批量替换逻辑
+find package/feeds/ -name Makefile -exec sed -i 's/+dnsmasq$/+dnsmasq-full/g' {} +
+find package/feeds/ -name Makefile -exec sed -i 's/+dnsmasq /+dnsmasq-full /g' {} +
 # 3. 强制在 .config 中锁定满血版
 # 这里用追加模式 >>
 echo "CONFIG_PACKAGE_dnsmasq=n" >> .config
