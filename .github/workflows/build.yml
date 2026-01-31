@@ -45,48 +45,40 @@ jobs:
           [ -f ../config/feeds.conf.custom ] && cat ../config/feeds.conf.custom >> feeds.conf.default
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-
-      - name: 预配置 & 下载依赖
-        working-directory: openwrt
-        run: |
-          ./scripts/feeds update -a
-          ./scripts/feeds install -a
-          - name: 执行自定义配置 (暴力补丁版)
+          
+          - name: 执行自定义配置 (物理搬运版)
           working-directory: openwrt
           run: |
-          # 1. 先进行标准的 feeds 更新和安装（确保 packages 目录生成）
+          # 1. 正常的 feeds 更新
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-          # 2. 关键：在 install 之后运行你的手术脚本
-          # 这样可以防止脚本的修改被 feeds install 覆盖或误判
+          # 2. 【核心操作】物理搬运 dnsmasq 源码
+          # 既然 feeds 找不到，我们就把 base 里的源码直接拷贝到 package 目录下
+          # 这样 make 扫描目录时会直接发现它，无需通过 feeds 索引
+          mkdir -p package/dnsmasq
+          cp -r package/network/services/dnsmasq/* package/dnsmasq/
+          
+          # 3. 运行你的手术脚本 (修改 target.mk 等)
           chmod +x ../config/custom-config.sh
           ../config/custom-config.sh $(pwd)
 
-          # 3. 【暴力保底】手动创建物理链接 (这是核心！)
-          # 既然 install -a 找不到它，我们就手动把 base 里的 dnsmasq 链接到 package 目录
-          [ -d "package/network/services/dnsmasq" ] && ln -sf ../../../package/network/services/dnsmasq package/feeds/packages/dnsmasq
-
-          # 4. 强制写入 .config (在 make defconfig 之前做最后的挣扎)
-          # 确保这几行在 .config 的最末尾，优先级最高
+          # 4. 【强制锁定】直接向 .config 注入灵魂
+          # 此时不要管 feeds 的警告，直接告诉 .config 我要这两个包
           echo "CONFIG_PACKAGE_dnsmasq=n" >> .config
           echo "CONFIG_PACKAGE_dnsmasq-full=y" >> .config
-          echo "CONFIG_PACKAGE_dnsmasq_full_ipset=y" >> .config
-          echo "CONFIG_PACKAGE_dnsmasq_full_nftset=y" >> .config
+          echo "CONFIG_PACKAGE_luci-app-passwall=y" >> .config
+          # 补齐 PassWall 常用依赖，防止它被剔除
+          echo "CONFIG_PACKAGE_luci-app-passwall_Iptables_Transparent_Proxy=y" >> .config
+          echo "CONFIG_PACKAGE_luci-app-passwall_Nftables_Transparent_Proxy=y" >> .config
 
-          # 5. 生成配置并验证
+          # 5. 执行 defconfig 并强制验证
+          # 使用 -j1 确保报错信息清晰
           make defconfig
           
           echo "========= 依赖最终确认 ========="
           grep "CONFIG_PACKAGE_dnsmasq-full=y" .config && echo "✅ dnsmasq-full 成功锁定" || echo "❌ 依然找不到 dnsmasq-full"
           grep "CONFIG_PACKAGE_luci-app-passwall=y" .config && echo "✅ PassWall 成功锁定" || echo "❌ PassWall 消失了"
-          
-          # 5. 生成配置并验证
-          make defconfig
-          
-          echo "========= 依赖最终确认 ========="
-          grep "CONFIG_PACKAGE_dnsmasq-full=y" .config && echo "✅ dnsmasq-full 状态正常" || echo "❌ 依然找不到 dnsmasq-full"
-          grep "CONFIG_PACKAGE_luci-app-passwall=y" .config && echo "✅ PassWall 状态正常" || echo "❌ PassWall 消失了"
 
       - name: 编译固件（O3 优化）
         working-directory: openwrt
