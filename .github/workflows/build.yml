@@ -84,7 +84,6 @@ jobs:
           # 4. 强制锁定配置 (直接清理并注入)
           sed -i '/CONFIG_PACKAGE_dnsmasq/d' .config
           {
-            echo "CONFIG_PACKAGE_dnsmasq=n"
             echo "CONFIG_PACKAGE_dnsmasq-full=y"
             echo "CONFIG_PACKAGE_dnsmasq_full_ipset=y"
             echo "CONFIG_PACKAGE_dnsmasq_full_nftset=y"
