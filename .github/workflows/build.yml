@@ -24,7 +24,7 @@ jobs:
           python3-setuptools rsync unzip zlib1g-dev file wget zstd libzstd-dev \
           libelf-dev bc libpam0g-dev libev-dev libtirpc-dev libsnmp-dev liblzma-dev \
           libfdt-dev device-tree-compiler libssl-dev qemu-utils mkisofs libncurses5-dev \
-          libssl-dev libelf-dev libfdt-dev device-tree-compiler qemu-utils mkisofs
+          libssl-dev
       
       - name: 克隆 OpenWrt 源码
         run: |
