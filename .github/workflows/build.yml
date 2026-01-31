@@ -97,7 +97,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: beast-openwrt-2.0-x86_64
-        # 修改 path，确保能抓取到未压缩的 .img 和压缩后的 .gz
-          path: |
-            openwrt/bin/targets/x86/64/*-combined-efi.img*
-            openwrt/bin/targets/x86/64/*.img.gz
+          path: openwrt/bin/targets/x86/64/
