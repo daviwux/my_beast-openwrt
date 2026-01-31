@@ -32,7 +32,7 @@ echo "CONFIG_PACKAGE_dnsmasq_full_dhcpv6=y" >> .config
 sed -i 's/192.168.1.1/192.168.1.2/g' package/base-files/files/bin/config_generate
 
 # .config：核心包 + 依赖（全预编译）
-cat > .config <<EOF
+cat >> .config <<EOF
 CONFIG_TARGET_x86=y
 CONFIG_TARGET_x86_64=y
 CONFIG_TARGET_x86_64_DEVICE_generic=y
@@ -226,20 +226,17 @@ cat > package/base-files/files/etc/rc.local <<'EOF'
 #!/bin/sh
 ulimit -n 1048576
 
-# 自动扩容 rootfs
+# 自动扩容 rootfs (优化版)
 [ -f /etc/.expanded ] || {
     logger -t expand "开始自动扩容..."
     ROOT_PART=$(findmnt -no SOURCE /)
     [ "$ROOT_PART" ] && {
-        for i in {1..3}; do
-            opkg update && opkg install growpart && break
-            sleep 5
-        done
+        # 已经在固件里内置了工具，直接调用
         DISK=${ROOT_PART%[0-9]*}
         PART_NUM=${ROOT_PART##*[a-z]}
-        growpart "$DISK" "$PART_NUM" && partprobe "$DISK"
-        e2fsck -f -y "$ROOT_PART"
-        resize2fs "$ROOT_PART" && logger -t expand "扩容完成"
+        /usr/bin/growpart "$DISK" "$PART_NUM" && /usr/sbin/partprobe "$DISK"
+        /usr/sbin/e2fsck -f -y "$ROOT_PART"
+        /usr/sbin/resize2fs "$ROOT_PART" && logger -t expand "扩容完成"
     }
     touch /etc/.expanded
 }
@@ -255,9 +252,10 @@ for i in {1..5}; do
     sleep 8
 done
 
-# 万兆网卡环缓冲区优化
+# 万兆网卡环缓冲区优化 (增加上限判断，防止报错中断)
 for i in $(ls /sys/class/net | grep -E 'eth|enp|ens'); do
-    ethtool -G "$i" rx 16384 tx 16384 2>/dev/null
+    # 尝试设置 4096 (大部分 2.5G 网卡上限)，如果失败则跳过
+    ethtool -G "$i" rx 4096 tx 4096 2>/dev/null || ethtool -G "$i" rx 1024 tx 1024 2>/dev/null
 done
 
 # irqbalance 启用 + 日志
@@ -270,16 +268,16 @@ done
 # 编译失败保险：检测核心包是否缺失，并提示手动修复
 logger -t check "检查第三方软件预编译状态..."
 MISSING=""
-opkg list-installed | grep -q luci-app-passwall2 || MISSING="$MISSING passwall2"
+opkg list-installed | grep -q luci-app-passwall || MISSING="$MISSING passwall"
 opkg list-installed | grep -q luci-app-smartdns || MISSING="$MISSING smartdns"
 opkg list-installed | grep -q dockerd || MISSING="$MISSING docker"
 
 if [ -n "$MISSING" ]; then
     logger -t check "警告：以下包预编译失败：$MISSING"
     logger -t check "请登录 LuCI 或 SSH 执行以下命令手动修复："
-    [ -f /etc/passwall2-setup.sh ] && logger -t check "  sh /etc/passwall2-setup.sh"
+    [ -f /etc/passwall-setup.sh ] && logger -t check "  sh /etc/passwall-setup.sh"
     [ -f /etc/smartdns-setup.sh ] && logger -t check "  sh /etc/smartdns-setup.sh"
-    logger -t check "或手动 opkg update && opkg install luci-app-passwall2 luci-app-smartdns docker"
+    logger -t check "或手动 opkg update && opkg install luci-app-passwall luci-app-smartdns docker"
 else
     logger -t check "所有第三方软件预编译成功"
 fi
@@ -288,30 +286,30 @@ exit 0
 EOF
 chmod +x package/base-files/files/etc/rc.local
 
-# 预置 PassWall2 手动修复脚本（如果预编译失败，可直接运行）
+# 预置 PassWall 手动修复脚本（如果预编译失败，可直接运行）
 mkdir -p package/base-files/files/etc
-cat > package/base-files/files/etc/passwall2-setup.sh <<'EOF'
+cat > package/base-files/files/etc/passwall-setup.sh <<'EOF'
 #!/bin/sh
-echo "===== PassWall2 手动修复/升级脚本（防编译失败） ====="
+echo "===== PassWall 手动修复/升级脚本（防编译失败） ====="
 
 # 清理缓存并更新
 rm -rf /var/opkg-lists/*
 opkg update --force-checksum || { echo "opkg update 失败，请检查网络"; exit 1; }
 
 # 安装/修复核心包（force 容错）
-opkg install luci-app-passwall2 luci-i18n-passwall2-zh-cn sing-box chinadns-ng v2ray-geoip v2ray-geosite \
+opkg install luci-app-passwall luci-i18n-passwall-zh-cn sing-box chinadns-ng v2ray-geoip v2ray-geosite \
     kmod-nft-tproxy kmod-nft-socket kmod-nft-xfrm kmod-nft-nat6 ipset resolveip kmod-tun \
     --force-checksum --force-depends || echo "部分包安装失败，继续尝试启动"
 
 # 启用并重启服务
-[ -x /etc/init.d/passwall2 ] && {
-    /etc/init.d/passwall2 enable
-    /etc/init.d/passwall2 restart
+[ -x /etc/init.d/passwall ] && {
+    /etc/init.d/passwall enable
+    /etc/init.d/passwall restart
 }
 
 echo "修复完成！请检查 LuCI → Services → PassWall 2 是否正常"
 EOF
-chmod +x package/base-files/files/etc/passwall2-setup.sh
+chmod +x package/base-files/files/etc/passwall-setup.sh
 
 # 预置 SmartDNS 手动修复脚本
 cat > package/base-files/files/etc/smartdns-setup.sh <<'EOF'
@@ -335,7 +333,7 @@ chmod +x package/base-files/files/etc/smartdns-setup.sh
 
 echo "最终保险优化版 3.9.2 完成！"
 echo "即使编译第三方包失败，也可通过 SSH 或 LuCI 执行："
-echo "  sh /etc/passwall2-setup.sh"
+echo "  sh /etc/passwall-setup.sh"
 echo "  sh /etc/smartdns-setup.sh"
 echo "网页管理：http://192.168.1.2"
 echo "编译前：./scripts/feeds update -a && ./scripts/feeds install -a"
