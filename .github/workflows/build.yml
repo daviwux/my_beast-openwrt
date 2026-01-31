@@ -50,25 +50,50 @@ jobs:
       - name: 执行自定义配置
         working-directory: openwrt
         run: |
-          # 1. 更新基础 Feeds (不引入 old_packages，避免递归依赖报错)
+          # 1. 更新基础 Feeds
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-          # 2. 【核心修复】物理拉取 libcrypt-compat 源码到本地 package 目录
-          # 这样它就变成了“本地包”，优先级最高，且不会触发 Feed 循环依赖
+          # 2. 【物理造血】直接在本地创建 libcrypt-compat 源码包
           mkdir -p package/libs/libcrypt-compat
-          wget https://raw.githubusercontent.com/openwrt/packages/openwrt-23.05/libs/libcrypt-compat/Makefile -O package/libs/libcrypt-compat/Makefile
+          cat > package/libs/libcrypt-compat/Makefile <<'EOF'
+          include $(TOPDIR)/rules.mk
+          PKG_NAME:=libcrypt-compat
+          PKG_VERSION:=4.4.36
+          PKG_RELEASE:=1
+          PKG_SOURCE:=libxcrypt-$(PKG_VERSION).tar.xz
+          PKG_SOURCE_URL:=https://github.com/besser82/libxcrypt/releases/download/v$(PKG_VERSION)
+          PKG_HASH:=e5e1f1cb89e68e4f164f995646f88102d9426f046903f5728a8f90246067b14d
+          PKG_MAINTAINER:=OpenWrt Developers
+          PKG_LICENSE:=LGPL-2.1-or-later
+          PKG_LICENSE_FILES:=COPYING.LIB
+          PKG_BUILD_FLAGS:=no-mips16
+          include $(INCLUDE_DIR)/package.mk
+          define Package/libcrypt-compat
+          SECTION:=libs
+          CATEGORY:=Libraries
+          TITLE:=Crypt library (compatibility version)
+          DEPENDS:=+libxcrypt
+          endef
+          define Build/Configure
+          endef
+          define Build/Compile
+          endef
+          
+          define Package/libcrypt-compat/install
+          $(INSTALL_DIR) $(1)/usr/lib
+          $(CP) $(STAGING_DIR)/usr/lib/libcrypt.so* $(1)/usr/lib/
+          endef
+          $(eval $(call BuildPackage,libcrypt-compat))
+          EOF
 
           # 3. 运行你的 3.9.2 脚本
           chmod +x ../config/custom-config.sh
           ../config/custom-config.sh $(pwd)
 
-          # 4. 强制注入并清理
-          # 确保这一行在脚本运行之后执行，覆盖脚本可能的改动
+          # 4. 强制注入配置并清理冲突
           sed -i '/CONFIG_PACKAGE_libcrypt-compat/d' .config
           echo "CONFIG_PACKAGE_libcrypt-compat=y" >> .config
-          
-          # 物理删除冲突的 dnsmasq
           rm -rf package/network/services/dnsmasq
 
           # 5. 生成配置
