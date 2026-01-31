@@ -28,20 +28,14 @@ jobs:
           sed -i 's|https://git.openwrt.org/openwrt/|https://github.com/openwrt/|g' openwrt/feeds.conf.default
           sudo chown -R runner:docker openwrt
 
-      - name: 彻底移除冲突包 (关键)
+      - name: 清理 Feeds 冲突
         working-directory: openwrt
         run: |
-          # 1. 物理移除官方精简版 dnsmasq，确保 dnsmasq-full 成为唯一选择
-          rm -rf package/network/services/dnsmasq
-          
-          # 2. 移除官方 Feeds 中与 PassWall 冲突的旧核心 (防止编译中断)
           ./scripts/feeds update -a
+          # 只删除 feed 里的冲突项，保留 base 里的 dnsmasq 源码
           rm -rf feeds/packages/net/xray-core
           rm -rf feeds/packages/net/sing-box
           rm -rf feeds/packages/net/v2ray-geodata
-          
-          # 3. 追加自定义 Feeds 并正式安装
-          # 使用追加模式 >> 而非覆盖，确保官方基础库不丢失
           [ -f ../config/feeds.conf.custom ] && cat ../config/feeds.conf.custom >> feeds.conf.default
           ./scripts/feeds update -a
           ./scripts/feeds install -a
