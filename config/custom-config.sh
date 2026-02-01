@@ -9,6 +9,10 @@
 #   - nftables + Docker 桥接兼容 + 通用极致性能优化
 #   - 网页管理 IP：192.168.1.2
 # ==================================================
+# 【核心：先升级环境再做配置】
+# 强制升级 Golang 环境到 1.24 (解决 geoview 编译报错)
+rm -rf feeds/packages/lang/golang
+git clone --depth 1 https://github.com/sbwml/packages_lang_golang.git feeds/packages/lang/golang
 
 TARGET_DIR=${1:-$(pwd)}
 cd "$TARGET_DIR"
