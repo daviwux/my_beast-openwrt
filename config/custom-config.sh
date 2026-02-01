@@ -14,6 +14,15 @@
 rm -rf feeds/packages/lang/golang
 git clone --depth 1 https://github.com/sbwml/packages_lang_golang.git feeds/packages/lang/golang
 
+# === 1. Rust 编译器构建配置修复 (解决 download-ci-llvm 报错) ===
+find feeds/packages/lang/rust -name "*.mk" -exec sed -i 's/download-ci-llvm=true/download-ci-llvm=if-unchanged/g' {} +
+find feeds/packages/lang/rust -name "config.toml*" -exec sed -i 's/download-ci-llvm = true/download-ci-llvm = "if-unchanged"/g' {} +
+
+# === 2. 针对 1.89.0 源码包的深层修正 ===
+# 有些源码在解压后会自带配置文件，直接修改 Makefile 的定义
+sed -i 's/download-ci-llvm=true/download-ci-llvm=if-unchanged/g' feeds/packages/lang/rust/Makefile 2>/dev/null || true
+
+
 TARGET_DIR=${1:-$(pwd)}
 cd "$TARGET_DIR"
 
