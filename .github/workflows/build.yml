@@ -4,8 +4,6 @@ on:
   workflow_dispatch:
   push:
     branches: [ main ]
-    paths:
-      - 'config/**'
 
 jobs:
   build:
@@ -26,21 +24,31 @@ jobs:
       - name: 克隆源码与换源
         run: |
           git clone --depth 1 https://github.com/openwrt/openwrt.git -b v24.10.5 openwrt
-          # 替换官方源为 Github 镜像，避开 503 报错
           sed -i 's|https://git.openwrt.org/feed/|https://github.com/openwrt/|g' openwrt/feeds.conf.default
           sed -i 's|https://git.openwrt.org/openwrt/|https://github.com/openwrt/|g' openwrt/feeds.conf.default
 
-      - name: 执行环境补丁 (Go/Rust/Config)
+      - name: 更新 Feeds (生成目录)
         working-directory: openwrt
-        run: |
-          # 必须在 update feeds 前执行，确保 Go 1.24 提前就位
-          chmod +x ../config/custom-config.sh
-          ../config/custom-config.sh $(pwd)
+        run: ./scripts/feeds update -a
 
-      - name: 更新并安装 Feeds
+      - name: 编译器与依赖补丁 (核心手术)
         working-directory: openwrt
         run: |
-          ./scripts/feeds update -a
+          # 1. 升级 Go 到 1.24 (解决 geoview 报错)
+          rm -rf feeds/packages/lang/golang
+          git clone --depth 1 https://github.com/sbwml/packages_lang_golang.git feeds/packages/lang/golang
+
+          # 2. 修复 Rust 编译器 CI 校验 (解决 download-ci-llvm 报错)
+          find feeds/packages/lang/rust -name "*.mk" -exec sed -i 's/download-ci-llvm=true/download-ci-llvm=if-unchanged/g' {} +
+          find feeds/packages/lang/rust -name "config.toml*" -exec sed -i 's/download-ci-llvm = true/download-ci-llvm = "if-unchanged"/g' {} +
+          sed -i 's/download-ci-llvm=true/download-ci-llvm=if-unchanged/g' feeds/packages/lang/rust/Makefile 2>/dev/null || true
+
+          # 3. 修正 Dnsmasq 依赖指向 (消除 does not exist 警告)
+          find feeds/ -name Makefile -exec sed -i 's/+dnsmasq\b/+dnsmasq-full/g' {} +
+
+      - name: 安装 Feeds
+        working-directory: openwrt
+        run: |
           # 清除已知冲突项
           rm -rf feeds/packages/net/xray-core
           rm -rf feeds/packages/net/sing-box
@@ -49,7 +57,6 @@ jobs:
       - name: 物理造血 libcrypt-compat
         working-directory: openwrt
         run: |
-          # 解决 24.10 运行 Passwall 崩溃的关键
           mkdir -p package/libs/libcrypt-compat
           cat > package/libs/libcrypt-compat/Makefile <<'EOF'
           include $(TOPDIR)/rules.mk
@@ -76,23 +83,25 @@ jobs:
           endef
           $(eval $(call BuildPackage,libcrypt-compat))
           EOF
-          echo "CONFIG_PACKAGE_libcrypt-compat=y" >> .config
 
-      - name: 生成配置 (defconfig)
+      - name: 执行自定义配置
         working-directory: openwrt
         run: |
+          chmod +x ../config/custom-config.sh
+          ../config/custom-config.sh $(pwd)
+          # 强制注入兼容库
+          echo "CONFIG_PACKAGE_libcrypt-compat=y" >> .config
           rm -rf tmp
           make defconfig
 
-      - name: 编译固件 (O3 极致优化)
+      - name: 编译固件 (O3 优化)
         working-directory: openwrt
         run: |
-          # 强制 O3 优化加速
           sed -i 's/-Os/-O3/g' include/target.mk
           make -j$(nproc) || make -j1 V=s
 
       - name: 上传固件
         uses: actions/upload-artifact@v4
         with:
-          name: Beast-OpenWrt-4.0-Platinum
+          name: Beast-OpenWrt-4.0-Final
           path: openwrt/bin/targets/x86/64/
