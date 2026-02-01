@@ -99,6 +99,8 @@ CONFIG_PACKAGE_resolveip=y
 CONFIG_PACKAGE_kmod-tun=y
 CONFIG_PACKAGE_kmod-inet-diag=y
 CONFIG_PACKAGE_kmod-netlink-diag=y
+CONFIG_PACKAGE_gawk=y
+CONFIG_PACKAGE_getopt=y
 
 # Docker 预编译（nft 桥接兼容）
 CONFIG_PACKAGE_luci-app-dockerman=y
