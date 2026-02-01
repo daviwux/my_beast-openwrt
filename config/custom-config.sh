@@ -22,7 +22,6 @@ find feeds/packages/lang/rust -name "config.toml*" -exec sed -i 's/download-ci-l
 # 有些源码在解压后会自带配置文件，直接修改 Makefile 的定义
 sed -i 's/download-ci-llvm=true/download-ci-llvm=if-unchanged/g' feeds/packages/lang/rust/Makefile 2>/dev/null || true
 
-
 TARGET_DIR=${1:-$(pwd)}
 cd "$TARGET_DIR"
 
